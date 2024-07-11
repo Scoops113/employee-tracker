@@ -1,5 +1,5 @@
+const fs = require('fs');
 const inquirer = require('inquirer');
-const pool = require('./db/connection'); // Adjust path as necessary
 const {
   getDepartments,
   getRoles,
@@ -10,48 +10,37 @@ const {
   updateEmployeeRole
 } = require('./queries');
 
-const mainMenu = () => {
-  inquirer.prompt([
-    {
-      type: 'list',
-      name: 'action',
-      message: 'What would you like to do?',
-      choices: [
-        'View all departments',
-        'View all roles',
-        'View all employees',
-        'Add a department',
-        'Add a role',
-        'Add an employee',
-        'Update an employee role',
-        'Exit'
-      ]
-    }
-  ]).then(async (answers) => {
+const mainMenu = async () => {
+  console.clear();
+  try {
+    const answers = await inquirer.prompt([
+      {
+        type: 'list',
+        name: 'action',
+        message: 'What would you like to do?',
+        choices: [
+          'View all departments',
+          'View all roles',
+          'View all employees',
+          'Add a department',
+          'Add a role',
+          'Add an employee',
+          'Update an employee role',
+          'Generate Seeds File',
+          'Exit'
+        ]
+      }
+    ]);
+
     switch (answers.action) {
       case 'View all departments':
-        try {
-          const departments = await getDepartments(pool);
-          console.table(departments);
-        } catch (error) {
-          console.error('Error fetching departments:', error.message);
-        }
+        await viewAllDepartments();
         break;
       case 'View all roles':
-        try {
-          const roles = await getRoles(pool);
-          console.table(roles);
-        } catch (error) {
-          console.error('Error fetching roles:', error.message);
-        }
+        await viewAllRoles();
         break;
       case 'View all employees':
-        try {
-          const employees = await getEmployees(pool);
-          console.table(employees);
-        } catch (error) {
-          console.error('Error fetching employees:', error.message);
-        }
+        await viewAllEmployees();
         break;
       case 'Add a department':
         await addDepartmentPrompt();
@@ -65,34 +54,100 @@ const mainMenu = () => {
       case 'Update an employee role':
         await updateEmployeeRolePrompt();
         break;
+      case 'Generate Seeds File':
+        await generateSeedsFile();
+        break;
       case 'Exit':
         process.exit();
     }
-    mainMenu();
-  });
+  } catch (error) {
+    console.error('Error:', error.message);
+  } finally {
+    // Uncomment the following line if you want to keep the menu displayed after an action
+    // mainMenu();
+  }
 };
 
-const addDepartmentPrompt = () => {
-  inquirer.prompt([
-    {
-      type: 'input',
-      name: 'name',
-      message: 'Enter the name of the department:'
-    }
-  ]).then(async (answers) => {
-    try {
-      await addDepartment(pool, answers.name);
-      console.log('Department added!');
-    } catch (error) {
-      console.error('Error adding department:', error.message);
-    }
-    mainMenu();
+const viewAllDepartments = async () => {
+  try {
+    const departments = await getDepartments();
+    printDepartmentsTable(departments);
+  } catch (error) {
+    console.error('Error fetching departments:', error.message);
+  } finally {
+    await promptForMainMenu();
+  }
+};
+
+const viewAllRoles = async () => {
+  try {
+    const roles = await getRoles();
+    printRolesTable(roles);
+  } catch (error) {
+    console.error('Error fetching roles:', error.message);
+  } finally {
+    await promptForMainMenu();
+  }
+};
+
+const viewAllEmployees = async () => {
+  try {
+    const employees = await getEmployees();
+    printEmployeesTable(employees);
+  } catch (error) {
+    console.error('Error fetching employees:', error.message);
+  } finally {
+    await promptForMainMenu();
+  }
+};
+
+const printDepartmentsTable = (departments) => {
+  console.log('Departments:');
+  departments.forEach(department => {
+    console.log(`ID: ${department.id} | Name: ${department.name}`);
   });
+  console.log('\n');
+};
+
+const printRolesTable = (roles) => {
+  console.log('Roles:');
+  roles.forEach(role => {
+    console.log(`ID: ${role.id} | Title: ${role.title} | Salary: ${role.salary} | Department: ${role.department}`);
+  });
+  console.log('\n');
+};
+
+const printEmployeesTable = (employees) => {
+  console.log('Employees:');
+  employees.forEach(employee => {
+    const manager = employee.manager ? ` | Manager: ${employee.manager}` : '';
+    console.log(`ID: ${employee.id} | Name: ${employee.first_name} ${employee.last_name} | Job Title: ${employee.job_title} | Department: ${employee.department} | Salary: ${employee.salary}${manager}`);
+  });
+  console.log('\n');
+};
+
+const addDepartmentPrompt = async () => {
+  try {
+    const answers = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'name',
+        message: 'Enter the name of the department:'
+      }
+    ]);
+
+    await addDepartment(answers.name);
+    console.log('Department added successfully.');
+  } catch (error) {
+    console.error('Error adding department:', error.message);
+  } finally {
+    await promptForMainMenu();
+  }
 };
 
 const addRolePrompt = async () => {
   try {
-    const departments = await getDepartments(pool);
+    const departments = await getDepartments();
     const departmentChoices = departments.map(department => ({ name: department.name, value: department.id }));
 
     const answers = await inquirer.prompt([
@@ -114,20 +169,21 @@ const addRolePrompt = async () => {
       }
     ]);
 
-    await addRole(pool, answers.title, answers.salary, answers.department_id);
-    console.log('Role added!');
+    await addRole(answers.title, answers.salary, answers.department_id);
+    console.log('Role added successfully.');
   } catch (error) {
     console.error('Error adding role:', error.message);
+  } finally {
+    await promptForMainMenu();
   }
-  mainMenu();
 };
 
 const addEmployeePrompt = async () => {
   try {
-    const roles = await getRoles(pool);
+    const roles = await getRoles();
     const roleChoices = roles.map(role => ({ name: role.title, value: role.id }));
 
-    const employees = await getEmployees(pool);
+    const employees = await getEmployees();
     const managerChoices = employees.map(employee => ({ name: `${employee.first_name} ${employee.last_name}`, value: employee.id }));
     managerChoices.unshift({ name: 'None', value: null });
 
@@ -156,20 +212,21 @@ const addEmployeePrompt = async () => {
       }
     ]);
 
-    await addEmployee(pool, answers.first_name, answers.last_name, answers.role_id, answers.manager_id);
-    console.log('Employee added!');
+    await addEmployee(answers.first_name, answers.last_name, answers.role_id, answers.manager_id);
+    console.log('Employee added successfully.');
   } catch (error) {
     console.error('Error adding employee:', error.message);
+  } finally {
+    await promptForMainMenu();
   }
-  mainMenu();
 };
 
 const updateEmployeeRolePrompt = async () => {
   try {
-    const employees = await getEmployees(pool);
+    const employees = await getEmployees();
     const employeeChoices = employees.map(employee => ({ name: `${employee.first_name} ${employee.last_name}`, value: employee.id }));
 
-    const roles = await getRoles(pool);
+    const roles = await getRoles();
     const roleChoices = roles.map(role => ({ name: role.title, value: role.id }));
 
     const answers = await inquirer.prompt([
@@ -187,12 +244,75 @@ const updateEmployeeRolePrompt = async () => {
       }
     ]);
 
-    await updateEmployeeRole(pool, answers.employee_id, answers.role_id);
-    console.log('Employee role updated!');
+    await updateEmployeeRole(answers.employee_id, answers.role_id);
+    console.log('Employee role updated successfully.');
   } catch (error) {
     console.error('Error updating employee role:', error.message);
+  } finally {
+    await promptForMainMenu();
   }
-  mainMenu();
 };
+
+const generateSeedsFile = async () => {
+  try {
+    const departments = await getDepartments();
+    const roles = await getRoles();
+    const employees = await getEmployees();
+
+    const seedsContent = generateSeedsContent(departments, roles, employees);
+
+    
+    fs.writeFileSync('seeds.sql', seedsContent);
+
+    console.log('Seeds file generated successfully.');
+  } catch (error) {
+    console.error('Error generating seeds file:', error.message);
+  } finally {
+    await promptForMainMenu();
+  }
+};
+
+const generateSeedsContent = (departments, roles, employees) => {
+  let content = '';
+
+  
+  content += '-- Departments\n';
+  departments.forEach(department => {
+    content += `INSERT INTO department (name) VALUES ('${department.name}');\n`;
+  });
+
+ 
+  content += '\n-- Roles\n';
+  roles.forEach(role => {
+    content += `INSERT INTO role (title, salary, department_id) VALUES ('${role.title}', ${role.salary}, ${role.department_id});\n`;
+  });
+
+ 
+  content += '\n-- Employees\n';
+  employees.forEach(employee => {
+    const managerId = employee.manager_id ? employee.manager_id : 'NULL';
+    content += `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ('${employee.first_name}', '${employee.last_name}', ${employee.role_id}, ${managerId});\n`;
+  });
+
+  return content;
+};
+
+const promptForMainMenu = async () => {
+  const answer = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'returnToMainMenu',
+      message: 'Return to main menu?',
+      default: true
+    }
+  ]);
+
+  if (answer.returnToMainMenu) {
+    mainMenu();
+  } else {
+    process.exit();
+  }
+};
+
 
 mainMenu();

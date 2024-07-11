@@ -1,3 +1,8 @@
+const { ReadStream } = require('fs');
+
+
+ReadStream.setMaxListeners(30); 
+
 const pool = require('./db/connection');
 
 const getDepartments = async () => {
@@ -44,4 +49,3 @@ const updateEmployeeRole = async (employee_id, role_id) => {
 };
 
 module.exports = { getDepartments, getRoles, getEmployees, addDepartment, addRole, addEmployee, updateEmployeeRole };
-
