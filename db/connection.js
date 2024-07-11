@@ -1,4 +1,8 @@
 const { Pool } = require('pg');
+const { ReadStream } = require('fs');
+
+
+ReadStream.setMaxListeners(30);
 
 const pool = new Pool({
   user: 'Stephen C',
