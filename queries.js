@@ -1,7 +1,5 @@
 const { ReadStream } = require('fs');
-
-
-ReadStream.setMaxListeners(30); 
+ReadStream.setMaxListeners(30);
 
 const pool = require('./db/connection');
 
@@ -33,19 +31,51 @@ const getEmployees = async () => {
 };
 
 const addDepartment = async (name) => {
-  await pool.query('INSERT INTO department (name) VALUES ($1)', [name]);
+  try {
+    await pool.query('BEGIN');
+    const res = await pool.query('INSERT INTO department (name) VALUES ($1) RETURNING *', [name]);
+    await pool.query('COMMIT');
+    console.log('Department added:', res.rows[0]);
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    throw err;
+  }
 };
 
 const addRole = async (title, salary, department_id) => {
-  await pool.query('INSERT INTO role (title, salary, department_id) VALUES ($1, $2, $3)', [title, salary, department_id]);
+  try {
+    await pool.query('BEGIN');
+    const res = await pool.query('INSERT INTO role (title, salary, department_id) VALUES ($1, $2, $3) RETURNING *', [title, salary, department_id]);
+    await pool.query('COMMIT');
+    console.log('Role added:', res.rows[0]);
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    throw err;
+  }
 };
 
 const addEmployee = async (first_name, last_name, role_id, manager_id) => {
-  await pool.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4)', [first_name, last_name, role_id, manager_id]);
+  try {
+    await pool.query('BEGIN');
+    const res = await pool.query('INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ($1, $2, $3, $4) RETURNING *', [first_name, last_name, role_id, manager_id]);
+    await pool.query('COMMIT');
+    console.log('Employee added:', res.rows[0]);
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    throw err;
+  }
 };
 
 const updateEmployeeRole = async (employee_id, role_id) => {
-  await pool.query('UPDATE employee SET role_id = $1 WHERE id = $2', [role_id, employee_id]);
+  try {
+    await pool.query('BEGIN');
+    const res = await pool.query('UPDATE employee SET role_id = $1 WHERE id = $2 RETURNING *', [role_id, employee_id]);
+    await pool.query('COMMIT');
+    console.log('Employee role updated:', res.rows[0]);
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    throw err;
+  }
 };
 
 module.exports = { getDepartments, getRoles, getEmployees, addDepartment, addRole, addEmployee, updateEmployeeRole };
