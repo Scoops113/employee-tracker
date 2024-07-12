@@ -1,4 +1,3 @@
-const fs = require('fs');
 const inquirer = require('inquirer');
 const {
   getDepartments,
@@ -10,8 +9,19 @@ const {
   updateEmployeeRole
 } = require('./queries');
 
+const waitForKeyPress = () => {
+  return new Promise(resolve => {
+    process.stdin.setRawMode(true);
+    process.stdin.resume();
+    process.stdin.once('data', () => {
+      process.stdin.setRawMode(false);
+      process.stdin.pause();
+      resolve();
+    });
+  });
+};
+
 const mainMenu = async () => {
-  console.clear();
   try {
     const answers = await inquirer.prompt([
       {
@@ -26,7 +36,6 @@ const mainMenu = async () => {
           'Add a role',
           'Add an employee',
           'Update an employee role',
-          'Generate Seeds File',
           'Exit'
         ]
       }
@@ -54,17 +63,15 @@ const mainMenu = async () => {
       case 'Update an employee role':
         await updateEmployeeRolePrompt();
         break;
-      case 'Generate Seeds File':
-        await generateSeedsFile();
-        break;
       case 'Exit':
         process.exit();
     }
+
+    await waitForKeyPress();
+    mainMenu();
   } catch (error) {
     console.error('Error:', error.message);
-  } finally {
-    // Uncomment the following line if you want to keep the menu displayed after an action
-    // mainMenu();
+    mainMenu();
   }
 };
 
@@ -74,8 +81,6 @@ const viewAllDepartments = async () => {
     printDepartmentsTable(departments);
   } catch (error) {
     console.error('Error fetching departments:', error.message);
-  } finally {
-    await promptForMainMenu();
   }
 };
 
@@ -85,8 +90,6 @@ const viewAllRoles = async () => {
     printRolesTable(roles);
   } catch (error) {
     console.error('Error fetching roles:', error.message);
-  } finally {
-    await promptForMainMenu();
   }
 };
 
@@ -96,8 +99,6 @@ const viewAllEmployees = async () => {
     printEmployeesTable(employees);
   } catch (error) {
     console.error('Error fetching employees:', error.message);
-  } finally {
-    await promptForMainMenu();
   }
 };
 
@@ -106,7 +107,7 @@ const printDepartmentsTable = (departments) => {
   departments.forEach(department => {
     console.log(`ID: ${department.id} | Name: ${department.name}`);
   });
-  console.log('\n');
+  console.log('\nPress any key to continue...');
 };
 
 const printRolesTable = (roles) => {
@@ -114,7 +115,7 @@ const printRolesTable = (roles) => {
   roles.forEach(role => {
     console.log(`ID: ${role.id} | Title: ${role.title} | Salary: ${role.salary} | Department: ${role.department}`);
   });
-  console.log('\n');
+  console.log('\nPress any key to continue...');
 };
 
 const printEmployeesTable = (employees) => {
@@ -123,7 +124,7 @@ const printEmployeesTable = (employees) => {
     const manager = employee.manager ? ` | Manager: ${employee.manager}` : '';
     console.log(`ID: ${employee.id} | Name: ${employee.first_name} ${employee.last_name} | Job Title: ${employee.job_title} | Department: ${employee.department} | Salary: ${employee.salary}${manager}`);
   });
-  console.log('\n');
+  console.log('\nPress any key to continue...');
 };
 
 const addDepartmentPrompt = async () => {
@@ -140,8 +141,6 @@ const addDepartmentPrompt = async () => {
     console.log('Department added successfully.');
   } catch (error) {
     console.error('Error adding department:', error.message);
-  } finally {
-    await promptForMainMenu();
   }
 };
 
@@ -173,8 +172,6 @@ const addRolePrompt = async () => {
     console.log('Role added successfully.');
   } catch (error) {
     console.error('Error adding role:', error.message);
-  } finally {
-    await promptForMainMenu();
   }
 };
 
@@ -216,8 +213,6 @@ const addEmployeePrompt = async () => {
     console.log('Employee added successfully.');
   } catch (error) {
     console.error('Error adding employee:', error.message);
-  } finally {
-    await promptForMainMenu();
   }
 };
 
@@ -248,71 +243,7 @@ const updateEmployeeRolePrompt = async () => {
     console.log('Employee role updated successfully.');
   } catch (error) {
     console.error('Error updating employee role:', error.message);
-  } finally {
-    await promptForMainMenu();
   }
 };
-
-const generateSeedsFile = async () => {
-  try {
-    const departments = await getDepartments();
-    const roles = await getRoles();
-    const employees = await getEmployees();
-
-    const seedsContent = generateSeedsContent(departments, roles, employees);
-
-    
-    fs.writeFileSync('seeds.sql', seedsContent);
-
-    console.log('Seeds file generated successfully.');
-  } catch (error) {
-    console.error('Error generating seeds file:', error.message);
-  } finally {
-    await promptForMainMenu();
-  }
-};
-
-const generateSeedsContent = (departments, roles, employees) => {
-  let content = '';
-
-  
-  content += '-- Departments\n';
-  departments.forEach(department => {
-    content += `INSERT INTO department (name) VALUES ('${department.name}');\n`;
-  });
-
- 
-  content += '\n-- Roles\n';
-  roles.forEach(role => {
-    content += `INSERT INTO role (title, salary, department_id) VALUES ('${role.title}', ${role.salary}, ${role.department_id});\n`;
-  });
-
- 
-  content += '\n-- Employees\n';
-  employees.forEach(employee => {
-    const managerId = employee.manager_id ? employee.manager_id : 'NULL';
-    content += `INSERT INTO employee (first_name, last_name, role_id, manager_id) VALUES ('${employee.first_name}', '${employee.last_name}', ${employee.role_id}, ${managerId});\n`;
-  });
-
-  return content;
-};
-
-const promptForMainMenu = async () => {
-  const answer = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'returnToMainMenu',
-      message: 'Return to main menu?',
-      default: true
-    }
-  ]);
-
-  if (answer.returnToMainMenu) {
-    mainMenu();
-  } else {
-    process.exit();
-  }
-};
-
 
 mainMenu();
